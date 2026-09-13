@@ -77,12 +77,6 @@ fi
 echo "ISO verificada: $ISO_PATH"
 
 echo "=== Preparando archivos de arranque y drivers ==="
-wget -O /floppy/Firefox.exe \
-  'https://ftp.mozilla.org/pub/firefox/releases/64.0/win32/en-US/Firefox%20Setup%2064.0.exe' || true
-
-wget -O /floppy/WinRAR.exe \
-  'https://archive.org/download/winrar-x64-591es/winrar-x64-591es.exe' || true
-
 cat > /floppy/EnableRDP.ps1 <<'EOF'
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\' -Name "fDenyTSConnections" -Value 0
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp\' -Name "UserAuthentication" -Value 1
