@@ -5,7 +5,7 @@ mounted=0
 GREEN='\033[1;32m';GREEN_D='\033[0;32m';RED='\033[0;31m';YELLOW='\033[0;33m';BLUE='\033[0;34m';NC='\033[0m'
 # Virtualization checking..
 virtu=$(egrep -i '^flags.*(vmx|svm)' /proc/cpuinfo | wc -l)
-if [ $virtu = 0 ] ; then echo -e "[Error] ${RED}Virtualization/KVM in your Server/VPS is OFF\nExiting...${NC}";
+if [ "$virtu" = 0 ] ; then echo -e "[Error] ${RED}Virtualization/KVM in your Server/VPS is OFF\nExiting...${NC}"; exit 1
 else
 #
 # Deleting Previous Windows Installation by the Script
@@ -13,28 +13,47 @@ else
 #rm -rf /mediabots /floppy /virtio /media/* /tmp/*
 #rm -f /sw.iso /disk.img
 # installing required Ubuntu packages
-dist=$(hostnamectl | egrep "Operating System" | cut -f2 -d":" | cut -f2 -d " ")
-if [ $dist = "CentOS" ] ; then
+if [ -r /etc/os-release ]; then
+	. /etc/os-release
+	dist=$ID
+else
+	echo "No se pudo detectar la distribución Linux."
+	exit 1
+fi
+
+if [ "$dist" = "centos" ] || [ "$dist" = "rhel" ] || [ "$dist" = "rocky" ] || [ "$dist" = "almalinux" ]; then
 	printf "Y\n" | yum install sudo -y
 	sudo yum install wget vim curl genisoimage -y
 	# Downloading Portable QEMU-KVM
 	echo "Downloading QEMU"
 	sudo yum update -y
 	sudo yum install -y qemu-kvm
-elif [ $dist = "Ubuntu" -o $dist = "Debian" ] ; then
+elif [ "$dist" = "ubuntu" ] || [ "$dist" = "debian" ]; then
 	printf "Y\n" | apt-get install sudo -y
-	sudo apt-get install vim curl genisoimage -y
+	sudo apt-get update
+	sudo apt-get install -y vim curl genisoimage
 	# Downloading Portable QEMU-KVM
 	echo "Downloading QEMU"
 	sudo apt-get update
 	sudo apt-get install -y qemu-kvm
+else
+	echo "Distribución no compatible: $dist"
+	exit 1
 fi
-sudo ln -s /usr/bin/genisoimage /usr/bin/mkisofs
+if ! command -v mkisofs >/dev/null 2>&1; then
+	sudo ln -sf /usr/bin/genisoimage /usr/bin/mkisofs
+fi
 # Downloading resources
 sudo mkdir -p /mediabots /floppy /virtio /dev/shm/qemu
 expected_iso_sha256="052C7D7785A99DB7C5FF710090050FBD424A2F17312F0C6463E959E4E19CEE98"
-iso_path="/mnt/SERVER_EVAL_x64FRE_es-es.iso"
 ram_path="/dev/shm/qemu"
+iso_name="SERVER_EVAL_x64FRE_es-es.iso"
+iso_path="/mnt/$iso_name"
+ram_iso_path="$ram_path/$iso_name"
+if [ -f "$ram_iso_path" ]; then
+	echo "ISO existente encontrada en RAM; se omitirá la descarga."
+	iso_path="$ram_iso_path"
+fi
 link1_status=$(curl -Is https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_es-es.iso | grep HTTP | cut -f2 -d" " | head -1)
 #link2_status=$(curl -Is https://ia601506.us.archive.org/4/items/WS2012R2/WS2012R2.ISO | grep HTTP | cut -f2 -d" ")
 #sudo wget -P /mediabots https://archive.org/download/WS2012R2/WS2012R2.ISO # Windows Server 2012 R2
@@ -48,7 +67,7 @@ if [ ! -f "$iso_path" ]; then
 		exit 1
 	fi
 else
-	echo "ISO existente encontrada; se omitira la descarga."
+		echo "ISO existente encontrada; se omitirá la descarga."
 fi
 
 if [ ! -f "$iso_path" ]; then
@@ -78,8 +97,8 @@ sudo touch /floppy/EnableRDP.ps1
 sudo echo -e "Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\' -Name \"fDenyTSConnections\" -Value 0" >> /floppy/EnableRDP.ps1
 sudo echo -e "Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp\' -Name \"UserAuthentication\" -Value 1" >> /floppy/EnableRDP.ps1
 sudo echo -e "Enable-NetFirewallRule -DisplayGroup \"Remote Desktop\"" >> /floppy/EnableRDP.ps1
-# Downloading Virtio Drivers
-sudo wget -P /virtio https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso
+# VirtIO no se descarga: este script usa un disco IDE estándar y el comando de
+# QEMU no adjunta esa ISO. Evita llenar la pequeña partición raíz del VPS.
 # creating .iso for Windows tools & drivers
 sudo mkisofs -o /sw.iso /floppy
 #
@@ -127,7 +146,7 @@ skipped=0
 partition=1
 other_drives=""
 format=",format=raw"
-if [ $dist	= "CentOS" ] ; then
+if [ "$dist" = "centos" ] || [ "$dist" = "rhel" ] || [ "$dist" = "rocky" ] || [ "$dist" = "almalinux" ]; then
 	qemupath=$(whereis qemu-kvm | sed "s/ /\n/g" | egrep "^/usr/libexec/")
 	#b=($(lsblk | egrep "part"  |  tr -s '[:space:]' | cut -f1 -d" " | tr -cd "[:print:]\n" | sed 's/^/\/dev\//'))
 else
@@ -144,16 +163,16 @@ if [ $availableRAM -ge 4650 ] ; then # opened 2nd if
 		qemupath=/tmp/qemu-system-x86_64
 		echo "mounting devices"
 			mount -t tmpfs -o size=6000m tmpfs "$ram_path"
-			mv "$iso_path" "$ram_path/SERVER_EVAL_x64FRE_es-es.iso"
+			if [ "$iso_path" != "$ram_iso_path" ]; then mv "$iso_path" "$ram_iso_path"; fi
 			umount /mnt
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
-		mkdir /media/sw
+		mkdir -p /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
 			custom_param_os="$ram_path/SERVER_EVAL_x64FRE_es-es.iso"
 		custom_param_sw="/media/sw/sw.iso"
-		availableRAM=$(echo $availableRAMcommand | bash)
+		availableRAM=$(echo "$availableRAMcommand" | bash)
 		custom_param_disk=$firstDisk
 		custom_param_ram="-m "$(expr $availableRAM - 500 )"M"
 		format=""
@@ -215,16 +234,16 @@ if [ $availableRAM -ge 4650 ] ; then
 		qemupath=/tmp/qemu-system-x86_64
 		echo "mounting devices"
 			mount -t tmpfs -o size=6000m tmpfs "$ram_path"
-			mv "$iso_path" "$ram_path/SERVER_EVAL_x64FRE_es-es.iso"
+			if [ "$iso_path" != "$ram_iso_path" ]; then mv "$iso_path" "$ram_iso_path"; fi
 			umount /mnt
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
-		mkdir /media/sw
+		mkdir -p /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
 			custom_param_os="$ram_path/SERVER_EVAL_x64FRE_es-es.iso"
 		custom_param_sw="/media/sw/sw.iso"
-		availableRAM=$(echo $availableRAMcommand | bash)
+		availableRAM=$(echo "$availableRAMcommand" | bash)
 		custom_param_disk=$firstDisk
 		custom_param_ram="-m "$(expr $availableRAM - 500 )"M"
 		format=""
@@ -295,7 +314,7 @@ sleep 10
 df
 sync; echo 3 > /proc/sys/vm/drop_caches
 free -m
-availableRAM=$(echo $availableRAMcommand | bash)
+availableRAM=$(echo "$availableRAMcommand" | bash)
 custom_param_ram="-m "$(expr $availableRAM - 200 )"M"
 custom_param_ram2="-m "$(expr $availableRAM - 500 )"M"
 echo $custom_param_ram
