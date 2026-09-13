@@ -38,11 +38,24 @@ ram_path="/dev/shm/qemu"
 link1_status=$(curl -Is https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_es-es.iso | grep HTTP | cut -f2 -d" " | head -1)
 #link2_status=$(curl -Is https://ia601506.us.archive.org/4/items/WS2012R2/WS2012R2.ISO | grep HTTP | cut -f2 -d" ")
 #sudo wget -P /mediabots https://archive.org/download/WS2012R2/WS2012R2.ISO # Windows Server 2012 R2
-if [ $link1_status = "200" ] ; then
+if [ ! -f "$iso_path" ]; then
+	if [ "$link1_status" != "200" ]; then
+		echo "No se pudo acceder a la ISO de Windows Server"
+		exit 1
+	fi
 	if ! sudo wget -O "$iso_path" "https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_es-es.iso"; then
 		echo "No se pudo descargar la ISO de Windows Server"
 		exit 1
 	fi
+else
+	echo "ISO existente encontrada; se omitira la descarga."
+fi
+
+if [ ! -f "$iso_path" ]; then
+	echo "No existe la ISO de Windows Server"
+	exit 1
+fi
+
 	actual_iso_sha256=$(sudo sha256sum "$iso_path" | awk '{print toupper($1)}')
 	if [ -z "$expected_iso_sha256" ]; then
 		echo "SHA-256 calculado: $actual_iso_sha256"
@@ -95,8 +108,8 @@ model=$(lscpu | grep "Model name:" | head -1 | cut -f2 -d":" | awk '{$1=$1;print
 echo "CPU Model : "$model
 cpus=$(lscpu | grep CPU\(s\) | head -1 | cut -f2 -d":" | awk '{$1=$1;print}')
 echo "No. of CPU cores : "$cpus
-if [ $dist = "Debian" ] ;then availableRAMcommand="free -m | head -2 | tail -1 | awk '{print \$4}'" ; elif [ $dist = "Ubuntu" -o $dist = "CentOS" ] ;then availableRAMcommand="free -m | tail -2 | head -1 | awk '{print \$7}'"; fi
-availableRAM=$(echo $availableRAMcommand | bash)
+availableRAMcommand="free -m | awk '/^Mem:/ {print (\$7 > 0 ? \$7 : \$4)}'"
+availableRAM=$(echo "$availableRAMcommand" | bash)
 echo "Available RAM : "$availableRAM" MB"
 diskNumbers=$(fdisk -l | grep "Disk /dev/" | wc -l)
 partNumbers=$(lsblk | egrep "part" | wc -l) # $(fdisk -l | grep "^/dev/" | wc -l)
@@ -119,7 +132,7 @@ custom_param_virtio="/virtio/"$(ls /virtio)
 #
 custom_param_ram="-m "$(expr $availableRAM - 200 )"M"
 skipped=0
-partition=0
+partition=1
 other_drives=""
 format=",format=raw"
 if [ $dist	= "CentOS" ] ; then
