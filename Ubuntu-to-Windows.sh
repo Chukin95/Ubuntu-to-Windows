@@ -64,6 +64,8 @@ else
 fi
 sudo wget -P /floppy https://ftp.mozilla.org/pub/firefox/releases/64.0/win32/en-US/Firefox%20Setup%2064.0.exe
 sudo mv /floppy/'Firefox Setup 64.0.exe' /floppy/Firefox.exe
+sudo wget -P /floppy https://archive.org/download/winrar-x64-591es/winrar-x64-591es.exe
+sudo mv /floppy/winrar-x64-591es.exe /floppy/WinRAR.exe
 # sudo wget -P /floppy https://downloadmirror.intel.com/23073/eng/PROWinx64.exe # Intel Network Adapter for Windows Server 2012 R2
 # Powershell script to auto enable remote desktop for administrator
 sudo touch /floppy/EnableRDP.ps1
@@ -98,6 +100,7 @@ echo "Available RAM : "$availableRAM" MB"
 diskNumbers=$(fdisk -l | grep "Disk /dev/" | wc -l)
 partNumbers=$(lsblk | egrep "part" | wc -l) # $(fdisk -l | grep "^/dev/" | wc -l)
 firstDisk=$(fdisk -l | grep "Disk /dev/" | head -1 | cut -f1 -d":" | cut -f2 -d" ")
+firstDisk="/dev/sdb"
 freeDisk=$(df | grep "^/dev/" | awk '{print$1 " " $4}' | sort -g -k 2 | tail -1 | cut -f2 -d" ")
 # Windows required at least 25 GB free disk space
 firstDiskLow=0
@@ -133,11 +136,12 @@ if [ $availableRAM -ge 4650 ] ; then # opened 2nd if
 	if [ ! -z $deleteLinux ] && [ $deleteLinux = 'Y' -o $deleteLinux = 'y' ] ; then
 		sudo wget -O /tmp/vkvm.tar.gz "https://archive.org/download/vkvm.tar_201903/vkvm.tar.gz" && sudo tar -xzf /tmp/vkvm.tar.gz -C /tmp
 		qemupath=/tmp/qemu-system-x86_64
+		echo "mounting devices"
+		mount -t tmpfs -o size=6000m tmpfs /mnt
+		mv /mediabots/* /mnt
+		umount /mediabots
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
-		echo "mounting devices"
-		mount -t tmpfs -o size=4500m tmpfs /mnt
-		mv /mediabots/* /mnt
 		mkdir /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
@@ -148,6 +152,7 @@ if [ $availableRAM -ge 4650 ] ; then # opened 2nd if
 		custom_param_ram="-m "$(expr $availableRAM - 500 )"M"
 		format=""
 		mounted=1
+		partition=1
 	else
 		if [ $firstDiskLow = 0 ] ; then
 			if [ $partNumbers -gt 1 ] ; then
@@ -202,11 +207,12 @@ if [ $availableRAM -ge 4650 ] ; then
 	if [ ! -z $deleteLinux ] && [ $deleteLinux = 'Y' -o $deleteLinux = 'y' ] ; then
 		sudo wget -O /tmp/vkvm.tar.gz "https://archive.org/download/vkvm.tar_201903/vkvm.tar.gz" && sudo tar -xzf /tmp/vkvm.tar.gz -C /tmp
 		qemupath=/tmp/qemu-system-x86_64
+		echo "mounting devices"
+		mount -t tmpfs -o size=6000m tmpfs /mnt
+		mv /mediabots/* /mnt
+		umount /mediabots
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
-		echo "mounting devices"
-		mount -t tmpfs -o size=4500m tmpfs /mnt
-		mv /mediabots/* /mnt
 		mkdir /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
@@ -217,6 +223,7 @@ if [ $availableRAM -ge 4650 ] ; then
 		custom_param_ram="-m "$(expr $availableRAM - 500 )"M"
 		format=""
 		mounted=1
+		partition=1
 	else
 		echo "using secondary disk for installation."
 		custom_param_disk=$(fdisk -l | grep "Disk /dev/" | awk 'NR==2' | cut -f2 -d" " | cut -f1 -d":") # 2nd disk chosen
