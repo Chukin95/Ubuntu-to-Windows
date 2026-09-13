@@ -31,9 +31,9 @@ elif [ $dist = "Ubuntu" -o $dist = "Debian" ] ; then
 fi
 sudo ln -s /usr/bin/genisoimage /usr/bin/mkisofs
 # Downloading resources
-sudo mkdir /mediabots /floppy /virtio
+sudo mkdir -p /vpsroot /mediabots /floppy /virtio
 expected_iso_sha256="052C7D7785A99DB7C5FF710090050FBD424A2F17312F0C6463E959E4E19CEE98"
-iso_path="/mediabots/SERVER_EVAL_x64FRE_es-es.iso"
+iso_path="/vpsroot/SERVER_EVAL_x64FRE_es-es.iso"
 link1_status=$(curl -Is https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_es-es.iso | grep HTTP | cut -f2 -d" " | head -1)
 #link2_status=$(curl -Is https://ia601506.us.archive.org/4/items/WS2012R2/WS2012R2.ISO | grep HTTP | cut -f2 -d" ")
 #sudo wget -P /mediabots https://archive.org/download/WS2012R2/WS2012R2.ISO # Windows Server 2012 R2
@@ -138,14 +138,14 @@ if [ $availableRAM -ge 4650 ] ; then # opened 2nd if
 		qemupath=/tmp/qemu-system-x86_64
 		echo "mounting devices"
 		mount -t tmpfs -o size=6000m tmpfs /mnt
-		mv /mediabots/* /mnt
-		umount /mediabots
+			mv "$iso_path" /mnt/SERVER_EVAL_x64FRE_es-es.iso
+			umount /vpsroot
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
 		mkdir /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
-		custom_param_os="/mnt/"$(ls /mnt)
+			custom_param_os="/mnt/SERVER_EVAL_x64FRE_es-es.iso"
 		custom_param_sw="/media/sw/sw.iso"
 		availableRAM=$(echo $availableRAMcommand | bash)
 		custom_param_disk=$firstDisk
@@ -209,14 +209,14 @@ if [ $availableRAM -ge 4650 ] ; then
 		qemupath=/tmp/qemu-system-x86_64
 		echo "mounting devices"
 		mount -t tmpfs -o size=6000m tmpfs /mnt
-		mv /mediabots/* /mnt
-		umount /mediabots
+			mv "$iso_path" /mnt/SERVER_EVAL_x64FRE_es-es.iso
+			umount /vpsroot
 		echo "erasing primary disk data"
 		sudo dd if=/dev/zero of=$firstDisk bs=1M count=1 # blank out the disk
 		mkdir /media/sw
 		mount -t tmpfs -o size=121m tmpfs /media/sw
 		mv /sw.iso /media/sw
-		custom_param_os="/mnt/"$(ls /mnt)
+			custom_param_os="/mnt/SERVER_EVAL_x64FRE_es-es.iso"
 		custom_param_sw="/media/sw/sw.iso"
 		availableRAM=$(echo $availableRAMcommand | bash)
 		custom_param_disk=$firstDisk
