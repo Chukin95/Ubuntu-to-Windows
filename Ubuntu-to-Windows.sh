@@ -68,14 +68,6 @@ fi
 		echo "Obtenido:  $actual_iso_sha256"
 		exit 1
 	fi
-#elif [ $link2_status = "200" -o $link2_status = "301" -o $link2_status = "302" ] ; then
-#	sudo wget -P /mediabots https://ia601506.us.archive.org/4/items/WS2012R2/WS2012R2.ISO
-else
-	echo -e "${RED}[Error]${NC} ${YELLOW}Sorry! None of Windows OS image urls are available , please report about this issue on Github page : ${NC}https://github.com/mediabots/Linux-to-Windows-with-QEMU"
-	echo "Exiting.."
-	sleep 30
-	exit 1
-fi
 sudo wget -P /floppy https://ftp.mozilla.org/pub/firefox/releases/64.0/win32/en-US/Firefox%20Setup%2064.0.exe
 sudo mv /floppy/'Firefox Setup 64.0.exe' /floppy/Firefox.exe
 sudo wget -P /floppy https://archive.org/download/winrar-x64-591es/winrar-x64-591es.exe
