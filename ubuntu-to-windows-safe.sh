@@ -40,11 +40,20 @@ fi
 
 echo "=== Instalando paquetes ==="
 if command -v apt-get >/dev/null 2>&1; then
-  export DEBIAN_FRONTEND=noninteractive
-  mkdir -p /dev/shm/apt-tmp
-  chmod 1777 /dev/shm/apt-tmp
-  apt-get -o Dir::Tmp=/dev/shm/apt-tmp update
-  apt-get -o Dir::Tmp=/dev/shm/apt-tmp install -y sudo wget curl vim genisoimage qemu-kvm qemu-utils
+  missing=0
+  for command_name in wget curl genisoimage qemu-system-x86_64; do
+    command -v "$command_name" >/dev/null 2>&1 || missing=1
+  done
+  if (( missing )); then
+    export DEBIAN_FRONTEND=noninteractive
+    export TMPDIR=/dev/shm/apt-tmp
+    mkdir -p "$TMPDIR"
+    chmod 1777 "$TMPDIR"
+    apt-get update
+    apt-get install -y sudo wget curl vim genisoimage qemu-kvm qemu-utils
+  else
+    echo "Paquetes necesarios ya instalados; se omite APT."
+  fi
 elif command -v yum >/dev/null 2>&1; then
   yum update -y
   yum install -y sudo wget curl vim genisoimage qemu-kvm qemu-img
