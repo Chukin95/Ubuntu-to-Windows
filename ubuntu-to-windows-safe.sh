@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 ISO_URL='https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/SERVER_EVAL_x64FRE_es-es.iso'
-ISO_PATH='/mnt/SERVER_EVAL_x64FRE_es-es.iso'
+ISO_PATH='/dev/shm/qemu/SERVER_EVAL_x64FRE_es-es.iso'
 EXPECTED_SHA256='052C7D7785A99DB7C5FF710090050FBD424A2F17312F0C6463E959E4E19CEE98'
 
 echo "=== Verificando entorno ==="
@@ -31,6 +31,13 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+ROOT_FREE_MB=$(df -Pm / | awk 'NR == 2 {print $4}')
+if (( ROOT_FREE_MB < 150 )); then
+  echo -e "[Error] ${RED}La partición raíz tiene menos de 150 MiB libres.${NC}"
+  echo "Elimina descargas incompletas, por ejemplo: /mnt/SERVER_EVAL_x64FRE_es-es.iso"
+  exit 1
+fi
+
 echo "=== Instalando paquetes ==="
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
@@ -46,10 +53,15 @@ fi
 
 ln -sf /usr/bin/genisoimage /usr/bin/mkisofs 2>/dev/null || true
 
-mkdir -p /mnt /floppy /virtio /dev/shm/qemu /sw
+mkdir -p /floppy /dev/shm/qemu /sw
+
+SHM_FREE_MB=$(df -Pm /dev/shm/qemu | awk 'NR == 2 {print $4}')
+if (( SHM_FREE_MB < 5000 )); then
+  echo -e "[Error] ${RED}Se necesitan al menos 5.000 MiB libres en /dev/shm para la ISO.${NC}"
+  exit 1
+fi
 
 echo "=== Descargando ISO ==="
-mkdir -p /mnt
 if [[ ! -f "$ISO_PATH" ]]; then
   wget -O "$ISO_PATH" "$ISO_URL"
 fi
@@ -76,9 +88,6 @@ Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\' -Name
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp\' -Name "UserAuthentication" -Value 1
 Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 EOF
-
-wget -O /virtio/virtio-win.iso \
-  'https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso' || true
 
 mkisofs -o /sw.iso /floppy
 
