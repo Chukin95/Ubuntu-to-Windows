@@ -42,7 +42,7 @@ if [ $link1_status = "200" ] ; then
 		echo "No se pudo descargar la ISO de Windows Server"
 		exit 1
 	fi
-	actual_iso_sha256=$(sudo sha256sum "$iso_path" | awk '{print $1}')
+	actual_iso_sha256=$(sudo sha256sum "$iso_path" | awk '{print toupper($1)}')
 	if [ -z "$expected_iso_sha256" ]; then
 		echo "SHA-256 calculado: $actual_iso_sha256"
 		echo "Pega el SHA-256 oficial de Microsoft en expected_iso_sha256 y vuelve a ejecutar el script."
