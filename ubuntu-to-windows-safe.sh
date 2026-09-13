@@ -41,8 +41,10 @@ fi
 echo "=== Instalando paquetes ==="
 if command -v apt-get >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
-  apt-get update
-  apt-get install -y sudo wget curl vim genisoimage qemu-kvm qemu-utils
+  mkdir -p /dev/shm/apt-tmp
+  chmod 1777 /dev/shm/apt-tmp
+  apt-get -o Dir::Tmp=/dev/shm/apt-tmp update
+  apt-get -o Dir::Tmp=/dev/shm/apt-tmp install -y sudo wget curl vim genisoimage qemu-kvm qemu-utils
 elif command -v yum >/dev/null 2>&1; then
   yum update -y
   yum install -y sudo wget curl vim genisoimage qemu-kvm qemu-img
